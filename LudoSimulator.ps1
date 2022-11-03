@@ -1,8 +1,71 @@
-﻿[CmdletBinding()]
+﻿<#
+    .SYNOPSIS
+    Simulates playing the game Ludo
+
+    .DESCRIPTION
+    This will run several games in a row and summarize which player won the most.
+    Each player can be set up to prioritize types of moves.
+
+    .PARAMETER NumPlayer
+    Specifies number of players (Default: 4, Min: 1)
+
+    .PARAMETER NumTokens
+    Specifies numbers of tokens/pieces per player (Default: 4, Min: 1)
+
+    .PARAMETER NumRounds
+    Specifies number of rounds that should be played (Default: 20, Min: 1)
+
+    .INPUTS
+    None. You cannot pipe objects to LudoSimulator.
+
+    .OUTPUTS
+    Custom object sorted by number of wins per player.
+
+    .EXAMPLE
+    PS> .\LudoSimulator.ps1
+    
+    Count Name
+    ----- ----
+        8 4
+        7 2
+        3 3
+        2 1
+
+    .EXAMPLE
+    PS> .\LudoSimulator.ps1 -NumRounds 5
+
+    Count Name
+    ----- ----
+        2 2
+        1 1
+        1 3
+        1 4
+
+    .EXAMPLE
+    PS>  .\LudoSimulator.ps1 -NumPlayers 6 -NumRounds 1
+
+    Count Name
+    ----- ----
+        1 4   
+
+    .LINK
+    Most Recent Version: https://github.com/toringe77/ludosimulator
+
+    .Link
+    WikiPedia: https://en.wikipedia.org/wiki/Ludo
+
+    .Link
+    BoardGameGeek: https://boardgamegeek.com/boardgame/2136/pachisi
+#>
+
+[CmdletBinding()]
 param (
-    $NumPlayers = 4,
-    $NumTokens = 4,
-    $NumRounds = 20
+    [ValidateRange(1, [int]::MaxValue)]
+    [int]$NumPlayers = 4,
+    [ValidateRange(1, [int]::MaxValue)]
+    [int]$NumTokens = 4,
+    [ValidateRange(1, [int]::MaxValue)]
+    [int]$NumRounds = 20
 )
 
 Function Get-DiceRandom
@@ -489,4 +552,4 @@ while ( $round -lt $NumRounds )
     $totalWinners += $winners
 }
 Write-Verbose "Winners: $($totalWinners.number)."
-$totalWinners | Group-Object number | Sort-Object -Descending Count | select Count,Name
+$totalWinners | Group-Object number | Sort-Object -Descending Count | Select-Object Count,Name
