@@ -18,5 +18,5 @@ Dedicated parameter to select the level of info, instead of using -Verbose.
 
 ## Files
 
-LudoSimulator.ps1 - The main script
-LudoSimulator.jpg - Visual representation of the board and the idea of cell numbers. File is based on this image: https://commons.wikimedia.org/wiki/File:Ludo-2.jpg
+- LudoSimulator.ps1 - The main script
+- LudoSimulator.jpg - Visual representation of the board and the idea of cell numbers. File is based on this image: https://commons.wikimedia.org/wiki/File:Ludo-2.jpg
