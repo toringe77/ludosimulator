@@ -84,7 +84,7 @@ Function New-Token
     New-Object -TypeName psobject -property @{
         Number = $Number
         CurrentCell = 0
-        Range = 0
+        Distance = 0
         Owner = $Owner
         StartCell = $StartCell
         ID = $UniqueNumber
@@ -114,7 +114,7 @@ Function Move-Token
         [switch]$JustCheck = $false
     )
 
-    $maxRange = $MaxCells + 5
+    $maxDistance = $MaxCells + 5
         
     $resultObject = [PSCustomObject]@{
         TokenID = $MoveToken.ID
@@ -128,47 +128,47 @@ Function Move-Token
         WillEnterSafeZone = $false
         ValidMoves = $true
         PathBlocked = $false
-        NewRange = 0
+        NewDistance = 0
     }
-    $newRange = 0
+    $newDistance = 0
     $newCell = 0
-    Write-Verbose "First Calculating new range and cell, and what is on that cell."
-    if ($MoveToken.Range -eq $maxrange )
+    Write-Debug "First Calculating new Distance and cell, and what is on that cell."
+    if ($MoveToken.Distance -eq $maxDistance )
     {
-        Write-Verbose "Token is out of the game"
+        Write-Debug "Token is out of the game"
         $resultObject.ValidMoves = $false
         $resultObject.IsOutOfGame = $true
     }
     elseif ( $MoveToken.currentcell -eq 0 -and $DiceThrow -eq 6 )
     {
-        Write-Verbose "Token will go on to the table"
-        $newRange = 1
+        Write-Debug "Token will go on to the table"
+        $newDistance = 1
         $newCell = $MoveToken.StartCell
     }
     elseif ( $MoveToken.currentcell -eq 0 -and $DiceThrow -ne 6 )
     {
-        Write-Verbose "Token cannot start."
+        Write-Debug "Token cannot start."
         $resultObject.ValidMoves = $false
     }
     else
     {
-        Write-Verbose "Assuming regular move"
-        $newRange = $MoveToken.range + $DiceThrow
-        if ( $newRange -gt $maxRange )
+        Write-Debug "Assuming regular move"
+        $newDistance = $MoveToken.Distance + $DiceThrow
+        if ( $newDistance -gt $maxDistance )
         {
             $resultObject.ValidMoves = $false
         }
-        elseif ($MoveToken.CurrentCell -eq -1 -and $newRange -lt $maxrange)
+        elseif ($MoveToken.CurrentCell -eq -1 -and $newDistance -lt $maxDistance)
         {
             $resultObject.ValidMoves = $false
         }
-        elseif ( $newRange -ge $MaxCells )
+        elseif ( $newDistance -ge $MaxCells )
         {
             $newCell = -1 # We are out of danger! (We might already be, but who cares.)
         }
         else
         {
-            Write-Verbose "We are still in the rat race"
+            Write-Debug "We are still in the rat race"
             $newCell = $MoveToken.CurrentCell + $DiceThrow
             if ( $newCell -gt $MaxCells )
             {
@@ -178,19 +178,19 @@ Function Move-Token
         }
     }
 
-    if ( ($MoveToken.currentCell -ne -1 ) -and ($newRange -gt 1) -and ($MoveToken.CurrentCell -lt $MaxCells) -and ($MoveToken.CurrentCell -ne ($MaxCells -1 )) )
+    if ( ($MoveToken.currentCell -ne -1 ) -and ($newDistance -gt 1) -and ($MoveToken.CurrentCell -lt $MaxCells) -and ($MoveToken.CurrentCell -ne ($MaxCells -1 )) )
     {
-        Write-Verbose "We move on the track. We are not on the last cell before safezone. Need to see if there are some towers blocking our paths."
+        Write-Debug "We move on the track. We are not on the last cell before safezone. Need to see if there are some towers blocking our paths."
         $startPath = $MoveToken.CurrentCell + 1
-        $rangeToSafeZone = $MaxCells - $MoveToken.Range - 1
-        if ( $rangeToSafeZone -le $DiceThrow )
+        $DistanceToSafeZone = $MaxCells - $MoveToken.Distance - 1
+        if ( $DistanceToSafeZone -le $DiceThrow )
         {
-            Write-Verbose "The distance to safety is less or equal to the dicethrow. Using that instead."
-            $endPath = $moveToken.CurrentCell + $rangeToSafeZone
+            Write-Debug "The distance to safety is less or equal to the dicethrow. Using that instead."
+            $endPath = $moveToken.CurrentCell + $DistanceToSafeZone
         }
         else
         {
-            Write-Verbose "Still a bit to go. Using only the dice throw as base for path."
+            Write-Debug "Still a bit to go. Using only the dice throw as base for path."
             $endPath = $MoveToken.CurrentCell + $DiceThrow -1
         }
              
@@ -212,31 +212,31 @@ Function Move-Token
 
     if ( $newCell -gt 0 )
     {
-        Write-Verbose "We are on the board. We need to check if we land on something."
+        Write-Debug "We are on the board. We need to check if we land on something."
         $landOnTokens = $AllTokens | Where-Object { $_.currentCell -eq $newCell -and ($_.currentcell -ne -1) }
         if ( $landOnTokens )
         {
             $numTokensInTargetCell = ($landOnTokens | Measure-Object ).Count
             $targetCellOwner = ( $landOnTokens | Select-Object -first 1 ).Owner
-            $homeCell = (( $landOnTokens | Select-Object -first 1 ).Range -eq 1) # Homecell is the first cell. No spawn-ganking!
-            Write-Verbose "We land on something, but what?"
+            $homeCell = (( $landOnTokens | Select-Object -first 1 ).Distance -eq 1) # Homecell is the first cell. No spawn-ganking!
+            Write-Debug "We land on something, but what?"
             if (  $targetCellOwner -eq $MoveToken.Owner )
             {
-                Write-verbose "It is ours! We can make a stack."
+                Write-Debug "It is ours! We can make a stack."
                 $resultObject.NumTokensStack = $numTokensInTargetCell + 1 # We can move a stack, but this needs to be handled outside this function.
             }
             else
             {
-                Write-Verbose "It is not ours. We need to see if it is their home."
+                Write-Debug "It is not ours. We need to see if it is their home."
                 if ( $homeCell )
                 {
-                    Write-Verbose "Damn, cannot land here."
+                    Write-Debug "Damn, cannot land here."
                     $resultObject.PathBlocked = $true
                     $resultObject.ValidMoves = $false
                 }
                 else
                 {
-                    Write-Verbose "Sweet. We can send them home!"
+                    Write-Debug "Sweet. We can send them home!"
                     $resultObject.NumTokensRemoved = $numTokensInTargetCell
                     $resultObject.TokensRemovedOwner = $targetCellOwner 
                 }
@@ -244,59 +244,59 @@ Function Move-Token
         }
     }
 
-    Write-Verbose "Analyzing the situation."
+    Write-Debug "Analyzing the situation."
 
     if ( $resultObject.ValidMoves -eq $false )
     {
         # Skipping the rest of the checks, as it has no valid moves
-        Write-Verbose "No valid checks"
+        Write-Debug "No valid moves!"
     }
-    elseif ( $MoveToken.Range -eq $maxRange )
+    elseif ( $MoveToken.Distance -eq $maxDistance )
     {
-        Write-Verbose "Token is already finished. No need to do anything."
+        Write-Debug "Token is already finished. No need to do anything."
         $resultObject.IsOutOfGame = $true
         $resultObject.ValidMoves = $false
             
     }
-    elseif ( $newRange -eq 1 )
+    elseif ( $newDistance -eq 1 )
     {
-        Write-Verbose "Token can be put on the board from the pocket."
+        Write-Debug "Token can be put on the board from the pocket."
         $resultObject.OutOfPocket = $true
-        $resultObject.NewRange = $newRange
+        $resultObject.NewDistance = $newDistance
     }
-    elseif ( $newRange -eq $maxRange )
+    elseif ( $newDistance -eq $maxDistance )
     {
-        Write-Verbose "Token will finish."
+        Write-Debug "Token will finish."
         $resultObject.WillFinish = $true
-        $resultObject.NewRange = $newRange
+        $resultObject.NewDistance = $newDistance
     }
     elseif ( $newCell -eq -1 -and  ($MoveToken.CurrentCell -ne -1 ))
     {
-        Write-Verbose "Token is not in, but will enter the safezone"
+        Write-Debug "Token is not in, but will enter the safezone"
         # Maxcells is also start of the finishtrack. 
         $resultObject.WillEnterSafeZone = $true
-        $resultObject.NewRange = $newRange
+        $resultObject.NewDistance = $newDistance
     }
     elseif ( $MoveToken.CurrentCell -ne -1 )
     {
-        Write-Verbose "We are not on hometrack. othing special will happen. Just move."
-        $resultObject.NewRange = $newRange
+        Write-Debug "We are not on hometrack. othing special will happen. Just move."
+        $resultObject.NewDistance = $newDistance
     }
 
     if ( -not $JustCheck -and $resultObject.ValidMoves -eq $true)
     {
-        Write-Verbose "Activate predictions. "
-        Write-Verbose "Moving Token"
+        Write-Debug "Activate predictions. "
+        Write-Debug "Moving Token"
         $MoveToken.CurrentCell = $newCell
-        $MoveToken.Range = $newRange
-        Write-Verbose "Removing Token(s)."
+        $MoveToken.Distance = $newDistance
+        Write-Debug "Removing Token(s)."
         if ( $resultObject.NumTokensRemoved -gt 0 )
         {
             $tokensToBeRemoved = $AllTokens | Where-Object { ($_.CurrentCell -eq $MoveToken.CurrentCell) -and ($_.owner -ne $movetoken.Owner)}
             foreach ( $tokenToBeRemoved in $tokensToBeRemoved )
             {
                 $tokenToBeRemoved.CurrentCell = 0
-                $tokenToBeRemoved.Range = 0
+                $tokenToBeRemoved.Distance = 0
             }
         }
     }
@@ -332,23 +332,23 @@ while ( $round -lt $NumRounds )
     #$tokens | ft
 
     Write-verbose "Setting up board."
-    $maxCells = 13 * $NumPlayers
-    $maxRange = $MaxCells + 5
-    Write-Verbose "MaxCells: $maxCells MaxRange: $maxRange"
+    $maxCells = 13 * $NumPlayers # Assuming we have a board that fits all players.
+    $maxDistance = $MaxCells + 5 # The distance each token have to travel, is the entire board plus 5.
+    Write-Verbose "MaxCells: $maxCells MaxDistance: $maxDistance"
     $winners = @()
     $turn = 0
     $longestStreak = 0
+    # We will play until we have a winner. (No quitting!)
     while ( ($winners | measure-object ).count -eq 0)
-    #while ( $turn -eq 0 ) # single round
     {
         $turn++
         Write-Verbose "Turn: $turn"
-        # Range 1 and 52 to 57 is safe
-     
+        # In a 4 player game:
+        # Distance 1 and 52 to 57 is safe
         # Red Start 1, End 51.
-        # Green Start 14, End 12 (1+13)
-        # Yellow Start 27 End 25. (2+13)
-        # Blue Start 40 End 38 (3 + 13)
+        # Green Start 14, End 12 (Red + 13)
+        # Yellow Start 27 End 25. (Green + 13)
+        # Blue Start 40 End 38 (Yellow + 13)
 
         foreach ( $player in $players )
         {
@@ -356,7 +356,7 @@ while ( $round -lt $NumRounds )
             do
             {
                 $diceThrow = Get-DiceRandom #throwing the dice
-                $reThrow = $false # Resetting
+                $reThrow = $false # Flag if you can throw again.
                 $moveTokenID = $null
                 $moveToken = $null
                 $moveTokens = @()
@@ -364,29 +364,30 @@ while ( $round -lt $NumRounds )
                 $streak++ # How many times have we thrown the dice in our turn
                 Write-Verbose "Player: $($player.Number). Dice: $diceThrow. Streak: $streak"
                 if ($streak -gt $longestStreak ) { $longestStreak = $streak } # For statistics
-                $playerTokens = $tokens | Where-Object { $_.Owner -eq $player.Number } # Selecting current player token
+                $playerTokens = $tokens | Where-Object { $_.Owner -eq $player.Number } # Selecting current player tokens
                 #$playertokens | ft
 
-                Write-Verbose "Analyzing possible moves"
+                Write-Debug "Analyzing possible moves"
                 $tokenAnalyze = @()
                 foreach ( $playerToken in $playerTokens )
                 {
                     $tokenAnalyze += Move-Token -JustCheck -MoveToken $playerToken -AllTokens $tokens -DiceThrow $diceThrow -MaxCells $maxCells
                 }
-                $numTokensInPocket = $playerTokens | Where-Object { $_.range -eq 0 } | Measure-Object | Select-Object -ExpandProperty count
+                $numTokensInPocket = $playerTokens | Where-Object { $_.Distance -eq 0 } | Measure-Object | Select-Object -ExpandProperty count
                 #$tokenAnalyze | ft *
-                Write-Verbose "Checking if a valid move is present, and if we have tokens on the track."
+                Write-Debug "Checking if a valid move is present, and if we have tokens on the track."
                 $validMoves =  $tokenAnalyze | Where-Object { $_.ValidMoves -eq $true }
                 $numValidMoves =  $validMoves | Measure-Object | Select-Object -ExpandProperty Count
                 $numOutOfPocket = $tokenAnalyze | Where-Object { $_.OutOfPocket -eq $true } | Measure-Object | Select-Object -ExpandProperty Count
 
                 if ( $numValidMoves -eq 0 )
-                {
-                     if ($streak -lt 3  -and $numTokensInPocket -eq $NumTokens) {  $reThrow = $true } else {  $reThrow = $false} # If you have no pieces on the board, you can throw up to 3 times to get one on the board.
+                {   # If you have no pieces on the board, you can throw up to 3 times to get one on the board.
+                     if ($streak -lt 3  -and $numTokensInPocket -eq $NumTokens) {  $reThrow = $true } else {  $reThrow = $false} 
                 }
                 else
                 {
                     # Selecting Player Behaviour
+                    # Todo: Being able to select priorities for each player from command line.
                     if ( $player.Number -eq 2 ) 
                     {
                         # 1st priority: Hunting pieces
@@ -512,17 +513,17 @@ while ( $round -lt $NumRounds )
                         $moveTokenID = $validMoves | Select-Object -Index $randomChoice | Select-Object -ExpandProperty TokenID
                         $moveTower = $true
                     }
-                    Write-Verbose "Executing move"
+                    Write-Debug "Executing move"
                     $moveToken = $playerTokens | Where-Object { $_.ID -eq $moveTokenID }
-                    if ( -not $moveTower -or $moveToken.Range -eq 0 )
+                    if ( -not $moveTower -or $moveToken.Distance -eq 0 )
                     {
-                        Write-Verbose "Move a single piece."
+                        Write-Debug "Move a single piece."
                         $moveTokens = $moveToken
                     }
                     else
                     {
-                        Write-Verbose "Move the tower if any"
-                        $moveTokens = $playerTokens | Where-Object { $_.range -eq ( $movetoken.range ) }
+                        Write-Debug "Move the tower if any"
+                        $moveTokens = $playerTokens | Where-Object { $_.Distance -eq ( $movetoken.Distance ) }
                     }
                     foreach ( $move in $moveTokens )
                     {
@@ -530,8 +531,8 @@ while ( $round -lt $NumRounds )
                         Move-Token -MoveToken $move -AllTokens $tokens -DiceThrow $diceThrow -MaxCells $maxCells | Out-Null
                         #| ft *
                     }
-                    Write-Verbose "Checking if we have a winner."
-                    $player.CompletedTokens = ($playerTokens | Where-Object { $_.range -eq $maxRange } | Measure-Object ).count
+                    Write-Debug "Checking if we have a winner."
+                    $player.CompletedTokens = ($playerTokens | Where-Object { $_.Distance -eq $maxDistance } | Measure-Object ).count
                     if (  $player.CompletedTokens -eq $NumTokens )
                     {
                         $didWin = $true # No Rethrow even on 6.
